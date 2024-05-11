@@ -1,0 +1,11 @@
+[package]
+name = "ipoc-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+cpu-time = "1.0.0"
+fast_image_resize = "3.0.4"
+image_compressor = "1.5.0"
+turbojpeg = { version = "1.1.0", features = ["image"] }
