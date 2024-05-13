@@ -13,7 +13,7 @@ use turbojpeg::image::{ColorType, ImageEncoder};
 use crate::{configuration, constants};
 use fast_image_resize as fr;
 
-// avg: ~30ms with Nearest algorithm
+// avg: ~26ms with Nearest algorithm
 #[get("/upload")]
 pub async fn upload_to_s3() -> impl Responder {
     let mut count = 0u8;
