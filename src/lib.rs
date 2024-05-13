@@ -4,10 +4,6 @@ pub mod routes;
 pub mod constants;
 pub mod configuration;
 
-pub struct Config {
-    pub write_image: bool,
-}
-
 pub fn run() -> Result<Server, std::io::Error> {
     let server = HttpServer::new(|| {
         App::new()
