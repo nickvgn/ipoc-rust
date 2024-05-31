@@ -1,20 +1,18 @@
 use actix_multipart::{Field, Multipart};
-use actix_web::web::BytesMut;
 use actix_web::{post, web, Responder};
 use cpu_time::ProcessTime;
 use futures_util::TryStreamExt;
 use std::io::{BufWriter, Cursor};
 
-use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use image::{codecs::jpeg::JpegEncoder, io::Reader as ImageReader};
-use image::{ColorType, ImageEncoder};
+use image::codecs::jpeg::JpegEncoder;
+use image::io::Reader as ImageReader;
+use image::{ExtendedColorType, ImageEncoder};
 
-use fast_image_resize as fr;
-
-use image::GenericImageView;
+use fast_image_resize::images::Image;
+use fast_image_resize::{CpuExtensions, IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 
 use crate::constants;
 
@@ -25,8 +23,7 @@ pub async fn upload_to_s3(mut payload: Multipart) -> impl Responder {
 
     while let Ok(Some(field)) = payload.try_next().await {
         println!("Processing field: {:?}", field);
-        let data = try_parsing_data(field).await.unwrap();
-        process_image(data).await.expect("Processing image failed");
+        process_image(field).await.expect("Processing image failed");
     }
 
     let elapsed_time = start.try_elapsed().expect("Getting elapsed time failed");
@@ -35,62 +32,63 @@ pub async fn upload_to_s3(mut payload: Multipart) -> impl Responder {
     "ok"
 }
 
-async fn try_parsing_data(mut field: Field) -> Result<BytesMut, Box<dyn std::error::Error>> {
+async fn process_image(mut field: Field) -> Result<&'static str, Box<dyn std::error::Error>> {
     let mut data = web::BytesMut::new();
 
-    // Streaming data
-    while let Ok(Some(chunk)) = field.try_next().await {
-        data.extend_from_slice(&chunk);
-    }
+    let file_name = field.content_disposition().get_filename().unwrap();
+    println!("Uploading file: {}", file_name);
 
-    Ok(data)
-}
-
-async fn process_image(data: BytesMut) -> Result<&'static str, Box<dyn std::error::Error>> {
     let final_path = PathBuf::from(constants::DEST).join(format!(
-        "orange-boi-turbo{}.jpg",
+        "{}-{}.jpg",
+        &file_name.split('.').next().expect("Invalid file name"),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_millis()
     ));
 
-    //let img = ImageReader::open(constants::SOURCE)
-    //    .unwrap()
-    //    .decode()
-    //    .expect("Decoding failed");
+    // Streaming data
+    while let Ok(Some(chunk)) = field.try_next().await {
+        data.extend_from_slice(&chunk);
+    }
 
+    let start_reader = ProcessTime::try_now().expect("Getting process time failed");
     let img = ImageReader::new(Cursor::new(data))
         .with_guessed_format()?
         .decode()?;
 
+    let elapsed_time_reader = start_reader
+        .try_elapsed()
+        .expect("Getting elapsed time failed");
+    println!("Reading Time time: {:?}", elapsed_time_reader);
+
     let start = ProcessTime::try_now().expect("Getting process time failed");
 
-    let width = NonZeroU32::new(img.width()).expect("Invalid width");
-    let height = NonZeroU32::new(img.height()).expect("Invalid height");
-
-    let src_image = fr::Image::from_vec_u8(
-        width,
-        height,
-        img.to_rgba8().into_raw(),
-        fr::PixelType::U8x4,
-    )
-    .expect("Creating image from buffer failed");
-
+    let dst_width = 1024;
+    let dst_height = 768;
     // Create container for data of destination image
-    let dst_width = NonZeroU32::new(1024).expect("Invalid width");
-    let dst_height = NonZeroU32::new(768).expect("Invalid height");
-    let mut dst_image = fr::Image::new(dst_width, dst_height, src_image.pixel_type());
-
-    // Get mutable view of destination image data
-    let mut dst_view = dst_image.view_mut();
+    let mut dst_image = Image::new(
+        dst_width,
+        dst_height,
+        img.pixel_type().expect("Getting pixel type failed"),
+    );
 
     // Create Resizer instance and resize source image
     // into buffer of destination image
-    let mut resizer = fr::Resizer::new(fr::ResizeAlg::Nearest);
+    let mut resizer = Resizer::new();
+    unsafe {
+        resizer.set_cpu_extensions(CpuExtensions::Neon);
+    }
 
     resizer
-        .resize(&src_image.view(), &mut dst_view)
+        .resize(
+            &img,
+            &mut dst_image,
+            &ResizeOptions {
+                algorithm: ResizeAlg::Nearest,
+                ..ResizeOptions::default()
+            },
+        )
         .expect("Resizing failed");
 
     // Write destination image as JPEG-file
@@ -98,15 +96,16 @@ async fn process_image(data: BytesMut) -> Result<&'static str, Box<dyn std::erro
     JpegEncoder::new_with_quality(&mut result_buf, 80)
         .write_image(
             dst_image.buffer(),
-            dst_width.get(),
-            dst_height.get(),
-            ColorType::Rgba8,
+            dst_width,
+            dst_height,
+            ExtendedColorType::Rgb8,
         )
         .expect("Writing image failed");
 
-    std::fs::write(final_path, result_buf.get_ref()).expect("Writing file failed");
     let elapsed_time = start.try_elapsed().expect("Getting elapsed time failed");
     println!("Processing Time time: {:?}", elapsed_time);
+
+    std::fs::write(final_path, result_buf.get_ref()).expect("Writing file failed");
 
     Ok("ok")
 }
