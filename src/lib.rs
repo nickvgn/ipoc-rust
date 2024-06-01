@@ -19,6 +19,7 @@ pub async fn run() -> Result<Server, std::io::Error> {
 
     let client = s3::Client::new(&config);
 
+    // to test connection
     show_buckets(true, &client, "ap-southeast-1").await.unwrap();
 
     // TODO: pass in the client to the app instance as shared data; to be used by each worker thread; possibly need to clone the client
