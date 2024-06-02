@@ -8,19 +8,19 @@ use fast_image_resize::images::Image;
 use fast_image_resize::{IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 
 pub struct ImageProcessor {
-    pub image_buffer: web::BytesMut,
+    pub image_bytes: web::BytesMut,
     pub file_name: String,
 }
 
 impl ImageProcessor {
-    pub fn new(image_buffer: web::BytesMut, file_name: &str) -> Self {
+    pub fn new(image_bytes: web::BytesMut, file_name: &str) -> Self {
         Self {
-            image_buffer,
+            image_bytes,
             file_name: file_name.to_owned(),
         }
     }
     pub fn resize(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let img = ImageReader::new(Cursor::new(&self.image_buffer))
+        let img = ImageReader::new(Cursor::new(&self.image_bytes))
             .with_guessed_format()?
             .decode()?;
 

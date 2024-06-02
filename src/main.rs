@@ -4,6 +4,8 @@ use std::net::TcpListener;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "info");
+    std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
         // aws logs are too much man
         .filter(Some("aws_config"), log::LevelFilter::Error)
