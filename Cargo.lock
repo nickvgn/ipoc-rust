@@ -1714,6 +1714,7 @@ dependencies = [
  "futures-util",
  "image 0.25.1",
  "image_compressor",
+ "log",
  "rayon",
  "serde",
  "tokio",
