@@ -5,6 +5,7 @@ use s3::error::SdkError;
 use s3::operation::put_object::{PutObjectError, PutObjectOutput};
 use s3::primitives::ByteStream;
 
+#[derive(Clone)]
 pub struct S3Uploader {
     client: s3::Client,
     pub bucket_name: &'static str,
@@ -28,16 +29,6 @@ impl S3Uploader {
         }
     }
 }
-
-impl Clone for S3Uploader {
-    fn clone(&self) -> Self {
-        S3Uploader {
-            client: self.client.clone(),
-            bucket_name: self.bucket_name,
-        }
-    }
-}
-
 
 #[trait_variant::make(IntFactory: Send)]
 pub trait Upload {
