@@ -29,15 +29,6 @@ impl S3Uploader {
     }
 }
 
-#[trait_variant::make(IntFactory: Send)]
-pub trait Upload {
-    async fn upload(
-        &self,
-        buffer: Vec<u8>,
-        key: &str,
-    ) -> Result<PutObjectOutput, SdkError<PutObjectError>>;
-}
-
 impl Clone for S3Uploader {
     fn clone(&self) -> Self {
         S3Uploader {
@@ -45,6 +36,16 @@ impl Clone for S3Uploader {
             bucket_name: self.bucket_name,
         }
     }
+}
+
+
+#[trait_variant::make(IntFactory: Send)]
+pub trait Upload {
+    async fn upload(
+        &self,
+        buffer: Vec<u8>,
+        key: &str,
+    ) -> Result<PutObjectOutput, SdkError<PutObjectError>>;
 }
 
 // NOTE: this can just be in the impl block; but im just being fancy here to f around with rust
