@@ -2,10 +2,12 @@ use actix_multipart::{Field, Multipart};
 use actix_web::{post, web, Responder};
 use cpu_time::ProcessTime;
 use futures_util::TryStreamExt;
+use s3::error::SdkError;
+use s3::operation::put_object::{PutObjectError, PutObjectOutput};
+use s3::primitives::ByteStream;
 use std::io::{BufWriter, Cursor};
 
-use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::io::Reader as ImageReader;
@@ -15,8 +17,6 @@ use fast_image_resize::images::Image;
 use fast_image_resize::{IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 
 use aws_sdk_s3 as s3;
-
-use crate::constants;
 
 async fn show_buckets(strict: bool, client: &s3::Client, region: &str) -> Result<(), s3::Error> {
     let resp = client.list_buckets().send().await?;
@@ -55,17 +55,41 @@ async fn show_buckets(strict: bool, client: &s3::Client, region: &str) -> Result
     Ok(())
 }
 
+async fn upload_object(
+    client: &s3::Client,
+    bucket_name: &str,
+    buffer: Vec<u8>,
+    key: &str,
+) -> Result<PutObjectOutput, SdkError<PutObjectError>> {
+    let body = ByteStream::from(buffer);
+    client
+        .put_object()
+        .bucket(bucket_name)
+        .key(key)
+        .body(body)
+        .send()
+        .await
+}
+
 // avg: ~26ms with Nearest algorithm
 #[post("/upload")]
 pub async fn upload_to_s3(mut payload: Multipart, client: web::Data<s3::Client>) -> impl Responder {
     show_buckets(false, &client, "us-east-1")
         .await
         .expect("Listing buckets failed");
+
     let start = ProcessTime::try_now().expect("Getting process time failed");
 
     while let Ok(Some(field)) = payload.try_next().await {
         println!("Processing field: {:?}", field);
-        process_image(field).await.expect("Processing image failed");
+        let buffer = process_image(field).await.expect("Processing image failed");
+        let put_object_output =
+            upload_object(&client, "image-compress-tournament", buffer, "test.jpg").await;
+
+        match put_object_output {
+            Ok(_) => println!("Object uploaded successfully"),
+            Err(e) => println!("Error: {:?}", e),
+        }
     }
 
     let elapsed_time = start.try_elapsed().expect("Getting elapsed time failed");
@@ -74,20 +98,20 @@ pub async fn upload_to_s3(mut payload: Multipart, client: web::Data<s3::Client>)
     "ok"
 }
 
-async fn process_image(mut field: Field) -> Result<&'static str, Box<dyn std::error::Error>> {
+async fn process_image(mut field: Field) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut data = web::BytesMut::new();
 
     let file_name = field.content_disposition().get_filename().unwrap();
     println!("Uploading file: {}", file_name);
 
-    let final_path = PathBuf::from(constants::DEST).join(format!(
-        "{}-{}.jpg",
-        &file_name.split('.').next().expect("Invalid file name"),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis()
-    ));
+    // let final_path = PathBuf::from(constants::DEST).join(format!(
+    //     "{}-{}.jpg",
+    //     &file_name.split('.').next().expect("Invalid file name"),
+    //     SystemTime::now()
+    //         .duration_since(UNIX_EPOCH)
+    //         .expect("Time went backwards")
+    //         .as_millis()
+    // ));
 
     // Streaming data
     while let Ok(Some(chunk)) = field.try_next().await {
@@ -102,7 +126,7 @@ async fn process_image(mut field: Field) -> Result<&'static str, Box<dyn std::er
     let elapsed_time_reader = start_reader
         .try_elapsed()
         .expect("Getting elapsed time failed");
-    println!("Reading Time time: {:?}", elapsed_time_reader);
+    println!("Reading time: {:?}", elapsed_time_reader);
 
     let start = ProcessTime::try_now().expect("Getting process time failed");
 
@@ -142,11 +166,13 @@ async fn process_image(mut field: Field) -> Result<&'static str, Box<dyn std::er
         .expect("Writing image failed");
 
     let elapsed_time = start.try_elapsed().expect("Getting elapsed time failed");
-    println!("Processing Time time: {:?}", elapsed_time);
+    println!("Processing time: {:?}", elapsed_time);
 
-    std::fs::write(final_path, result_buf.get_ref()).expect("Writing file failed");
+    // std::fs::write(final_path, result_buf.get_ref()).expect("Writing file failed");
 
-    Ok("ok")
+    Ok(result_buf
+        .into_inner()
+        .expect("Getting inner buffer failed"))
 }
 
 //let mut elapsed_times = Vec::new();
