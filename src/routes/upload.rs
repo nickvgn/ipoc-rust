@@ -76,9 +76,6 @@ async fn process_image(mut field: Field) -> Result<&'static str, Box<dyn std::er
     // Create Resizer instance and resize source image
     // into buffer of destination image
     let mut resizer = Resizer::new();
-    unsafe {
-        resizer.set_cpu_extensions(CpuExtensions::Neon);
-    }
 
     resizer
         .resize(
