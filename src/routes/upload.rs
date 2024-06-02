@@ -52,7 +52,6 @@ pub async fn upload(mut payload: Multipart, s3: web::Data<S3Uploader>) -> impl R
                     ),
                 };
 
-                // chatgpt, i want to return this from the function
                 response = HttpResponse::Ok().json(upload_response);
             }
             Err(e) => {
