@@ -7,7 +7,7 @@ use s3::primitives::ByteStream;
 
 pub struct S3Uploader {
     client: s3::Client,
-    bucket_name: &'static str,
+    pub bucket_name: &'static str,
 }
 
 impl S3Uploader {
