@@ -1,23 +1,24 @@
+pub mod configuration;
+pub mod processor;
+pub mod routes;
+pub mod uploader;
+
 use actix_web::web;
 use actix_web::{dev::Server, middleware::Logger, App, HttpServer};
-use aws::get_s3_client;
+use uploader::S3Uploader;
 
-pub mod aws;
-pub mod configuration;
-pub mod constants;
-pub mod routes;
-
-pub async fn run() -> Result<Server, std::io::Error> {
-    let client = get_s3_client().await;
-
+pub async fn run(
+    listener: std::net::TcpListener,
+    s3: S3Uploader,
+) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .service(routes::upload_to_s3)
+            .route("/upload", web::post().to(routes::upload_to_s3))
             // Wrap the s3 client in an Arc smart pointer, to share it across threads
-            .app_data(web::Data::new(client.clone()))
+            .app_data(web::Data::new(s3.clone()))
     })
-    .bind("127.0.0.1:1234")?
+    .listen(listener)?
     .run();
 
     Ok(server)
