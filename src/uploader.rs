@@ -54,15 +54,16 @@ mod tests {
     #[tokio::test]
     async fn test_upload() {
         let key = "test-key";
+        let etag = "test-etag";
         let buffer = vec![1, 2, 3, 4, 5];
 
         let mut mock = MockS3Uploader::default();
 
         mock.expect_upload()
             .with(eq(buffer.clone()), eq(key))
-            .return_once(|_, _| Ok(PutObjectOutput::builder().build()));
+            .return_once(|_, _| Ok(PutObjectOutput::builder().e_tag(etag.to_string()).build()));
 
         let result = mock.upload(buffer, key).await;
-        assert!(result.is_ok());
+        assert_eq!(result.unwrap().e_tag(), Some(etag));
     }
 }
