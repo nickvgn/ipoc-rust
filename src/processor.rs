@@ -3,32 +3,32 @@ use std::io::{BufWriter, Cursor};
 use actix_web::web::{self};
 use anyhow::bail;
 use image::codecs::jpeg::JpegEncoder;
+use image::codecs::png::PngEncoder;
 use image::io::Reader as ImageReader;
-use image::{ExtendedColorType, ImageEncoder};
+use image::{ColorType, ImageEncoder};
 
 use fast_image_resize::images::Image;
 use fast_image_resize::{IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 
 pub struct ImageProcessor {
     pub image_bytes: web::BytesMut,
-    pub file_name: String,
 }
 
+// NOTE: should we skip processing if the image is already the right size?
 // NOTE: should we have a file type guard?
 impl ImageProcessor {
-    pub fn new(image_bytes: web::BytesMut, file_name: &str) -> Self {
-        Self {
-            image_bytes,
-            file_name: file_name.to_owned(),
-        }
+    pub fn new(image_bytes: web::BytesMut) -> Self {
+        Self { image_bytes }
     }
     pub fn resize(&self) -> anyhow::Result<Vec<u8>> {
         let img = ImageReader::new(Cursor::new(&self.image_bytes))
             .with_guessed_format()?
             .decode()?;
 
+        let aspect_ratio = img.width() as f32 / img.height() as f32;
+
         let dst_width = 1024;
-        let dst_height = 768;
+        let dst_height = (dst_width as f32 / aspect_ratio) as u32;
 
         let mut dst_image = match img.pixel_type() {
             Some(pixel_type) => Image::new(dst_width, dst_height, pixel_type),
@@ -50,13 +50,61 @@ impl ImageProcessor {
 
         // Write destination image as JPEG-file
         let mut result_buf = BufWriter::new(Vec::new());
-        JpegEncoder::new_with_quality(&mut result_buf, 80).write_image(
-            dst_image.buffer(),
-            dst_width,
-            dst_height,
-            ExtendedColorType::Rgb8,
-        )?;
+
+        match img.color() {
+            // NOTE: jpeg does not support alpha channel
+            ColorType::Rgba8 | ColorType::Rgba32F | ColorType::La8 | ColorType::La16 => {
+                PngEncoder::new(&mut result_buf).write_image(
+                    dst_image.buffer(),
+                    dst_width,
+                    dst_height,
+                    img.color().into(),
+                )?;
+            }
+            _ => {
+                JpegEncoder::new_with_quality(&mut result_buf, 80).write_image(
+                    dst_image.buffer(),
+                    dst_width,
+                    dst_height,
+                    img.color().into(),
+                )?;
+            }
+        }
 
         Ok(result_buf.into_inner()?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    fn read_image(file_path: &str) -> web::BytesMut {
+        let bytes_vec = std::fs::read(Path::new(file_path)).unwrap();
+        let mut image_bytes = web::BytesMut::new();
+        image_bytes.extend_from_slice(&bytes_vec);
+        image_bytes
+    }
+
+    #[test]
+    fn resize_jpg() {
+        let image_bytes = read_image("./src/test/fixtures/tofu-rice.jpg");
+        let result = ImageProcessor::new(image_bytes).resize();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn resize_webp() {
+        let image_bytes = read_image("./src/test/fixtures/steak-dinner.webp");
+        let result = ImageProcessor::new(image_bytes).resize();
+        assert!(result.is_ok());
+    }
+    #[test]
+    fn resize_png() {
+        let image_bytes = read_image("./src/test/fixtures/nasa-4928x3279.png");
+        let result = ImageProcessor::new(image_bytes).resize();
+        assert!(result.is_ok());
     }
 }

@@ -45,6 +45,8 @@ pub async fn upload(
         bytes.extend_from_slice(&chunk);
     }
 
+    let buffer = ImageProcessor::new(bytes).resize();
+
     // NOTE: need to change this to a more unique name?
     let file_name = format!(
         "{}.jpg",
@@ -53,8 +55,6 @@ pub async fn upload(
             .unwrap()
             .as_secs()
     );
-
-    let buffer = ImageProcessor::new(bytes, &file_name).resize();
 
     let buffer = match buffer {
         Ok(buffer) => buffer,
