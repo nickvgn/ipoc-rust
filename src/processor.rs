@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Cursor};
 
 use actix_web::web::{self};
-use anyhow::{anyhow, Context};
+use anyhow::bail;
 use image::codecs::jpeg::JpegEncoder;
 use image::io::Reader as ImageReader;
 use image::{ExtendedColorType, ImageEncoder};
@@ -14,6 +14,7 @@ pub struct ImageProcessor {
     pub file_name: String,
 }
 
+// NOTE: should we have a file type guard?
 impl ImageProcessor {
     pub fn new(image_bytes: web::BytesMut, file_name: &str) -> Self {
         Self {
@@ -31,7 +32,7 @@ impl ImageProcessor {
 
         let mut dst_image = match img.pixel_type() {
             Some(pixel_type) => Image::new(dst_width, dst_height, pixel_type),
-            None => return Err(anyhow!("Getting pixel type failed")),
+            None => bail!("Pixel type not found"),
         };
 
         // Create Resizer instance and resize source image

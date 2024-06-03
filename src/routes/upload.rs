@@ -1,24 +1,42 @@
 use std::time;
 
-use actix_web::HttpResponse;
-use actix_web::{web, Responder};
+use actix_web::http::StatusCode;
+use actix_web::web;
+use actix_web::web::Json;
+use actix_web::ResponseError;
 use cpu_time::ProcessTime;
 use futures_util::TryStreamExt;
 use serde::Serialize;
+use thiserror::Error;
 
 use crate::processor::ImageProcessor;
 use crate::uploader::S3Uploader;
 use crate::uploader::Upload;
 
+#[derive(Debug, Error)]
+pub enum HttpError {
+    #[error("An internal error occurred. Please try again later.")]
+    InternalError,
+}
+
+impl ResponseError for HttpError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            HttpError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct UploadResponse {
+pub struct UploadResponse {
     s3_url: String,
 }
 
-// TODO: Custom error handling
-
-pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl Responder {
+pub async fn upload(
+    mut body: web::Payload,
+    s3: web::Data<S3Uploader>,
+) -> actix_web::Result<Json<UploadResponse>, HttpError> {
     let start = ProcessTime::try_now().expect("Getting start time failed");
 
     let mut bytes = web::BytesMut::new();
@@ -42,7 +60,7 @@ pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl R
         Ok(buffer) => buffer,
         Err(e) => {
             log::error!("Error resizing image: {:?}", e);
-            return HttpResponse::InternalServerError().finish();
+            return Err(HttpError::InternalError);
         }
     };
 
@@ -63,11 +81,11 @@ pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl R
                 ),
             };
 
-            HttpResponse::Ok().json(upload_response)
+            Ok(web::Json(upload_response))
         }
         Err(e) => {
             log::error!("Error uploading image: {:?}", e);
-            HttpResponse::InternalServerError().finish()
+            Err(HttpError::InternalError)
         }
     }
 }

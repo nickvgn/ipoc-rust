@@ -1747,6 +1747,7 @@ dependencies = [
  "image",
  "log",
  "serde",
+ "thiserror",
  "tokio",
  "trait-variant",
 ]
