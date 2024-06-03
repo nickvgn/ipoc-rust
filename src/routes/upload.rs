@@ -44,15 +44,10 @@ pub async fn upload(
     }
 
     let processor = ImageProcessor::new(bytes);
-    let data = processor.resize();
-
-    let (buffer, format) = match data {
-        Ok(buffer) => buffer,
-        Err(e) => {
-            log::error!("Error resizing image: {:?}", e);
-            return Err(HttpError::InternalError);
-        }
-    };
+    let (buffer, format) = processor.resize().map_err(|e| {
+        log::error!("Error resizing image: {:?}", e);
+        HttpError::InternalError
+    })?;
 
     // NOTE: need to figure out naming
     let file_name = format!("{}.{}", "test", format.extensions_str()[0]);
