@@ -10,6 +10,8 @@ use image::{ColorType, ImageEncoder};
 use fast_image_resize::images::Image;
 use fast_image_resize::{IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 
+const RESIZE_WIDTH: u32 = 1024;
+
 pub struct ImageProcessor {
     pub image_bytes: web::BytesMut,
 }
@@ -20,15 +22,19 @@ impl ImageProcessor {
     pub fn new(image_bytes: web::BytesMut) -> Self {
         Self { image_bytes }
     }
+    fn get_resized_dimensions(img: &image::DynamicImage) -> (u32, u32) {
+        let aspect_ratio = img.width() as f32 / img.height() as f32;
+        let dst_width = RESIZE_WIDTH;
+        let dst_height = (dst_width as f32 / aspect_ratio) as u32;
+
+        (dst_width, dst_height)
+    }
     pub fn resize(&self) -> anyhow::Result<Vec<u8>> {
         let img = ImageReader::new(Cursor::new(&self.image_bytes))
             .with_guessed_format()?
             .decode()?;
 
-        let aspect_ratio = img.width() as f32 / img.height() as f32;
-
-        let dst_width = 1024;
-        let dst_height = (dst_width as f32 / aspect_ratio) as u32;
+        let (dst_width, dst_height) = Self::get_resized_dimensions(&img);
 
         let mut dst_image = match img.pixel_type() {
             Some(pixel_type) => Image::new(dst_width, dst_height, pixel_type),
@@ -88,23 +94,33 @@ mod tests {
         image_bytes
     }
 
+    fn check_is_image_resized(bytes_vec: Vec<u8>) {
+        let img = ImageReader::new(Cursor::new(bytes_vec))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+        assert_eq!(img.width(), RESIZE_WIDTH);
+    }
+
     #[test]
     fn resize_jpg() {
         let image_bytes = read_image("./src/test/fixtures/tofu-rice.jpg");
         let result = ImageProcessor::new(image_bytes).resize();
-        assert!(result.is_ok());
+        check_is_image_resized(result.unwrap());
     }
 
     #[test]
     fn resize_webp() {
         let image_bytes = read_image("./src/test/fixtures/steak-dinner.webp");
         let result = ImageProcessor::new(image_bytes).resize();
-        assert!(result.is_ok());
+        check_is_image_resized(result.unwrap());
     }
+
     #[test]
     fn resize_png() {
         let image_bytes = read_image("./src/test/fixtures/nasa-4928x3279.png");
         let result = ImageProcessor::new(image_bytes).resize();
-        assert!(result.is_ok());
+        check_is_image_resized(result.unwrap());
     }
 }

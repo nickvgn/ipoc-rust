@@ -1,5 +1,3 @@
-use std::time;
-
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::web::Json;
@@ -47,14 +45,8 @@ pub async fn upload(
 
     let buffer = ImageProcessor::new(bytes).resize();
 
-    // NOTE: need to change this to a more unique name?
-    let file_name = format!(
-        "{}.jpg",
-        time::SystemTime::now()
-            .duration_since(time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    );
+    // NOTE: need to figure ou naming
+    let file_name = format!("{}.jpg", "test");
 
     let buffer = match buffer {
         Ok(buffer) => buffer,
