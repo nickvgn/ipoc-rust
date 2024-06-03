@@ -104,12 +104,12 @@ mod tests {
             .unwrap()
             .decode()
             .unwrap();
-
+         
         assert_eq!(img.width(), RESIZE_WIDTH);
     }
 
     #[test]
-    fn resize_jpg() {
+    fn resized_jpeg_has_correct_dimensions() {
         let image_bytes = read_image("./tests/fixtures/tofu-rice.jpg");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
@@ -117,7 +117,7 @@ mod tests {
     }
 
     #[test]
-    fn resize_webp() {
+    fn resized_webp_has_correct_dimensions() {
         let image_bytes = read_image("./tests/fixtures/steak-dinner.webp");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn resize_png() {
+    fn resized_png_has_correct_dimensions() {
         let image_bytes = read_image("./tests/fixtures/nasa-4928x3279.png");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();

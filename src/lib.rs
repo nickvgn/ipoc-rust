@@ -15,6 +15,7 @@ pub async fn run(listener: TcpListener, s3: S3Uploader) -> Result<Server, std::i
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
+            .route("/health-check", web::get().to(routes::health_check))
             .route("/upload", web::post().to(routes::upload))
             // Set max payload size to 20 MB
             .app_data(web::PayloadConfig::new(12 * 1024 * 1024))
