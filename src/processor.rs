@@ -5,7 +5,7 @@ use anyhow::bail;
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::PngEncoder;
 use image::io::Reader as ImageReader;
-use image::{ColorType, ImageEncoder};
+use image::{ColorType, ImageEncoder, ImageFormat};
 
 use fast_image_resize::images::Image;
 use fast_image_resize::{IntoImageView, ResizeAlg, ResizeOptions, Resizer};
@@ -29,7 +29,7 @@ impl ImageProcessor {
 
         (dst_width, dst_height)
     }
-    pub fn resize(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn resize(&self) -> anyhow::Result<(Vec<u8>, ImageFormat)> {
         let img = ImageReader::new(Cursor::new(&self.image_bytes))
             .with_guessed_format()?
             .decode()?;
@@ -57,9 +57,12 @@ impl ImageProcessor {
         // Write destination image as JPEG-file
         let mut result_buf = BufWriter::new(Vec::new());
 
+        let format: ImageFormat;
+
         match img.color() {
             // NOTE: jpeg does not support alpha channel
             ColorType::Rgba8 | ColorType::Rgba32F | ColorType::La8 | ColorType::La16 => {
+                format = ImageFormat::Png;
                 PngEncoder::new(&mut result_buf).write_image(
                     dst_image.buffer(),
                     dst_width,
@@ -68,6 +71,7 @@ impl ImageProcessor {
                 )?;
             }
             _ => {
+                format = ImageFormat::Jpeg;
                 JpegEncoder::new_with_quality(&mut result_buf, 80).write_image(
                     dst_image.buffer(),
                     dst_width,
@@ -77,7 +81,7 @@ impl ImageProcessor {
             }
         }
 
-        Ok(result_buf.into_inner()?)
+        Ok((result_buf.into_inner()?, format))
     }
 }
 
@@ -106,21 +110,24 @@ mod tests {
     #[test]
     fn resize_jpg() {
         let image_bytes = read_image("./src/test/fixtures/tofu-rice.jpg");
-        let result = ImageProcessor::new(image_bytes).resize();
-        check_is_image_resized(result.unwrap());
+        let procesor = ImageProcessor::new(image_bytes);
+        let result = procesor.resize();
+        check_is_image_resized(result.unwrap().0);
     }
 
     #[test]
     fn resize_webp() {
         let image_bytes = read_image("./src/test/fixtures/steak-dinner.webp");
-        let result = ImageProcessor::new(image_bytes).resize();
-        check_is_image_resized(result.unwrap());
+        let procesor = ImageProcessor::new(image_bytes);
+        let result = procesor.resize();
+        check_is_image_resized(result.unwrap().0);
     }
 
     #[test]
     fn resize_png() {
         let image_bytes = read_image("./src/test/fixtures/nasa-4928x3279.png");
-        let result = ImageProcessor::new(image_bytes).resize();
-        check_is_image_resized(result.unwrap());
+        let procesor = ImageProcessor::new(image_bytes);
+        let result = procesor.resize();
+        check_is_image_resized(result.unwrap().0);
     }
 }

@@ -43,18 +43,19 @@ pub async fn upload(
         bytes.extend_from_slice(&chunk);
     }
 
-    let buffer = ImageProcessor::new(bytes).resize();
+    let processor = ImageProcessor::new(bytes);
+    let data = processor.resize();
 
-    // NOTE: need to figure ou naming
-    let file_name = format!("{}.jpg", "test");
-
-    let buffer = match buffer {
+    let (buffer, format) = match data {
         Ok(buffer) => buffer,
         Err(e) => {
             log::error!("Error resizing image: {:?}", e);
             return Err(HttpError::InternalError);
         }
     };
+
+    // NOTE: need to figure out naming
+    let file_name = format!("{}.{}", "test", format.extensions_str()[0]);
 
     match s3.upload(buffer, &file_name).await {
         Ok(_) => {
