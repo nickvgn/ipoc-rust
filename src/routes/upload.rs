@@ -9,7 +9,6 @@ use thiserror::Error;
 
 use crate::processor::ImageProcessor;
 use crate::uploader::S3Uploader;
-use crate::uploader::Upload;
 
 #[derive(Debug, Error)]
 pub enum HttpError {
