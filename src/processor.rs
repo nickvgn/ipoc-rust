@@ -104,12 +104,13 @@ mod tests {
             .unwrap()
             .decode()
             .unwrap();
+
         assert_eq!(img.width(), RESIZE_WIDTH);
     }
 
     #[test]
     fn resize_jpg() {
-        let image_bytes = read_image("./src/test/fixtures/tofu-rice.jpg");
+        let image_bytes = read_image("./tests/fixtures/tofu-rice.jpg");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
         check_is_image_resized(result.unwrap().0);
@@ -117,7 +118,7 @@ mod tests {
 
     #[test]
     fn resize_webp() {
-        let image_bytes = read_image("./src/test/fixtures/steak-dinner.webp");
+        let image_bytes = read_image("./tests/fixtures/steak-dinner.webp");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
         check_is_image_resized(result.unwrap().0);
@@ -125,7 +126,7 @@ mod tests {
 
     #[test]
     fn resize_png() {
-        let image_bytes = read_image("./src/test/fixtures/nasa-4928x3279.png");
+        let image_bytes = read_image("./tests/fixtures/nasa-4928x3279.png");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
         check_is_image_resized(result.unwrap().0);

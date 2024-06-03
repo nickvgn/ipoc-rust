@@ -52,7 +52,7 @@ mod tests {
     use mockall::predicate::*;
 
     #[tokio::test]
-    async fn test_upload() {
+    async fn upload_to_s3() {
         let key = "test-key";
         let etag = "test-etag";
         let buffer = vec![1, 2, 3, 4, 5];
