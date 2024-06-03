@@ -16,6 +16,8 @@ struct UploadResponse {
     s3_url: String,
 }
 
+// TODO: Custom error handling
+
 pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl Responder {
     let start = ProcessTime::try_now().expect("Getting start time failed");
 
@@ -34,9 +36,15 @@ pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl R
             .as_secs()
     );
 
-    let buffer = ImageProcessor::new(bytes, &file_name)
-        .resize()
-        .expect("Resizing image failed");
+    let buffer = ImageProcessor::new(bytes, &file_name).resize();
+
+    let buffer = match buffer {
+        Ok(buffer) => buffer,
+        Err(e) => {
+            log::error!("Error resizing image: {:?}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
 
     match s3.upload(buffer, &file_name).await {
         Ok(_) => {
@@ -58,8 +66,8 @@ pub async fn upload(mut body: web::Payload, s3: web::Data<S3Uploader>) -> impl R
             HttpResponse::Ok().json(upload_response)
         }
         Err(e) => {
-            // TODO: Custom error handling
-            HttpResponse::InternalServerError().body(e.to_string())
+            log::error!("Error uploading image: {:?}", e);
+            HttpResponse::InternalServerError().finish()
         }
     }
 }

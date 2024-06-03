@@ -4,9 +4,11 @@ pub mod processor;
 pub mod routes;
 pub mod uploader;
 
+use std::net::TcpListener;
+
 use actix_web::web;
 use actix_web::{dev::Server, middleware::Logger, App, HttpServer};
-use std::net::TcpListener;
+
 use uploader::S3Uploader;
 
 pub async fn run(listener: TcpListener, s3: S3Uploader) -> Result<Server, std::io::Error> {

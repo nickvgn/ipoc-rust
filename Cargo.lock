@@ -1736,6 +1736,7 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "anyhow",
  "aws-config",
  "aws-sdk-s3",
  "cpu-time",

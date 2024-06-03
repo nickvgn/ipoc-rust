@@ -1,6 +1,8 @@
-use env_logger::Env;
-use ipoc_rust::{constants::BUCKET_NAME, uploader::S3Uploader};
 use std::net::TcpListener;
+
+use env_logger::Env;
+
+use ipoc_rust::{constants::BUCKET_NAME, uploader::S3Uploader};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
