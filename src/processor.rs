@@ -98,13 +98,13 @@ mod tests {
         image_bytes
     }
 
-    fn check_is_image_resized(bytes_vec: Vec<u8>) {
+    fn assert_image_dimensions(bytes_vec: Vec<u8>) {
         let img = ImageReader::new(Cursor::new(bytes_vec))
             .with_guessed_format()
             .unwrap()
             .decode()
             .unwrap();
-         
+
         assert_eq!(img.width(), RESIZE_WIDTH);
     }
 
@@ -113,7 +113,7 @@ mod tests {
         let image_bytes = read_image("./tests/fixtures/tofu-rice.jpg");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
-        check_is_image_resized(result.unwrap().0);
+        assert_image_dimensions(result.unwrap().0);
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
         let image_bytes = read_image("./tests/fixtures/steak-dinner.webp");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
-        check_is_image_resized(result.unwrap().0);
+        assert_image_dimensions(result.unwrap().0);
     }
 
     #[test]
@@ -129,6 +129,6 @@ mod tests {
         let image_bytes = read_image("./tests/fixtures/nasa-4928x3279.png");
         let procesor = ImageProcessor::new(image_bytes);
         let result = procesor.resize();
-        check_is_image_resized(result.unwrap().0);
+        assert_image_dimensions(result.unwrap().0);
     }
 }
